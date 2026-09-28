@@ -11,6 +11,13 @@ export async function POST(request: Request) {
     const db = supabase();
     const { data: manager } = await db.from("employees").select("id").eq("name", parsed.data.actorName).eq("role", "manager").maybeSingle();
     if (!manager) return NextResponse.json({ error: "Manager account is unavailable" }, { status: 403 });
+    // One personal Telegram account can represent one fictional employee at a time.
+    // Clear an earlier demonstration link before assigning the account to a new role.
+    const { error: clearError } = await db.from("employees")
+      .update({ telegram_user_id: null, linked_telegram_chat_id: null })
+      .eq("telegram_user_id", parsed.data.telegramUserId)
+      .neq("name", parsed.data.employeeName);
+    if (clearError) throw clearError;
     const { error } = await db.from("employees").update({ telegram_user_id: parsed.data.telegramUserId, linked_telegram_chat_id: parsed.data.chatId }).eq("name", parsed.data.employeeName);
     if (error) throw error;
     return NextResponse.json({ ok: true });

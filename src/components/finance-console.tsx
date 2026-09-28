@@ -55,7 +55,24 @@ export function FinanceConsole() {
         {isManager && <ManagerPanel pendingSales={pendingSales} pendingExpenses={pendingExpenses} post={post} />}
         {!isSalesperson && !isKevin && !isManager && <p>Select a role to begin.</p>}
       </div>
-      <aside className="instructions"><h2>How to use this</h2><ol><li>Select a demonstration role.</li><li>Salespeople submit sales; Kevin submits expenses.</li><li>Svetlana reviews pending decisions.</li><li>Use the Telegram bot for S01 and E01.</li></ol><p>Website and Telegram use the same server-side rules.</p><h3>Telegram commands</h3><code>/id</code><code>/sale S01 | Customer | A | Description | 1000 | 50 | 30 | 20</code><code>/expense E01 | Description | Materials | 120 | A</code></aside>
+      <aside className="instructions">
+        <h2>How to use this</h2>
+        <ol>
+          <li>Select a demonstration role.</li>
+          <li>Salespeople submit sales; Kevin submits expenses.</li>
+          <li>Svetlana reviews pending decisions and can correct a proposed split or expense allocation.</li>
+          <li>To test Telegram, send <code>/id</code>, then ask Svetlana to link both returned IDs to the correct fictional employee.</li>
+        </ol>
+        <p>Website and Telegram use the same server-side rules. Pending sales do not count as income; pending expenses remain visible as awaiting allocation.</p>
+        <h3>Working links</h3>
+        <p><a href="https://t.me/FriendsIncludedFinanceDarjaBot" target="_blank" rel="noreferrer">Telegram bot</a></p>
+        <p><a href="https://docs.google.com/spreadsheets/d/1sbOyytBvZ-rMHUwA7se6UYqd4ieQ5CduzV_NIZpjVmk/edit" target="_blank" rel="noreferrer">Google Sheets ledger</a></p>
+        <p><a href="https://github.com/md1406/friends-included-finance" target="_blank" rel="noreferrer">GitHub repository</a></p>
+        <h3>Telegram commands</h3>
+        <code>/id</code>
+        <code>/sale S01 | Customer | A | Description | 1000 | 50 | 30 | 20</code>
+        <code>/expense E01 | Description | Materials | 120 | A</code>
+      </aside>
     </section>
 
     <section className="records"><h2>Records</h2><div className="tables"><RecordTable title="Sales" rows={data.sales} columns={["reference", "customer", "project", "amount_cents", "status", "sync_status", "notification_status"]} /><RecordTable title="Expenses" rows={data.expenses} columns={["reference", "description", "category", "amount_cents", "status", "sync_status", "notification_status"]} /></div></section>
