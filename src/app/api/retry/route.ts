@@ -14,7 +14,8 @@ export async function POST(request: Request) {
     if (!manager) return NextResponse.json({ error: "Manager account is unavailable" }, { status: 403 });
     const isSale = parsed.data.reference.startsWith("S");
     const table = isSale ? "sales" : "expenses";
-    const { data: record, error } = await db.from(table).select("*, employees(name)").eq("reference", parsed.data.reference).maybeSingle();
+    const embeddedEmployee = isSale ? "*, employees!sales_salesperson_id_fkey(name)" : "*, employees!expenses_reporter_id_fkey(name)";
+    const { data: record, error } = await db.from(table).select(embeddedEmployee).eq("reference", parsed.data.reference).maybeSingle();
     if (error || !record) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
     if (parsed.data.action === "sync") {
       const result = await updateSyncState(db, table, record.reference, () => isSale ? syncSaleToSheets(record) : syncExpenseToSheets(record));

@@ -37,7 +37,7 @@ export async function submitSale(input: any, notificationChatId?: number | null)
     reference: input.reference, salesperson_id: employee.id, notification_chat_id: chatId, customer: input.customer,
     project: input.project, description: input.description, amount_cents: euroToCents(input.amount),
     proposed_richard_pct: input.richardPct, proposed_anastasia_pct: input.anastasiaPct, proposed_jean_claude_pct: input.jeanClaudePct,
-  }).select("*, employees(name)").single();
+  }).select("*, employees!sales_salesperson_id_fkey(name)").single();
   if (error) throw new Error(error.message);
   await updateSyncState(db, "sales", sale.reference, () => syncSaleToSheets(sale));
   if (chatId) await updateNotificationState(db, "sales", sale.reference, chatId, saleConfirmation(sale));
@@ -54,7 +54,7 @@ export async function submitExpense(input: any, notificationChatId?: number | nu
     reference: input.reference, reporter_id: employee.id, notification_chat_id: chatId, description: input.description,
     category: input.category, amount_cents: euroToCents(input.amount), proposed_allocation: input.proposedAllocation,
     status: isOverhead ? "Allocated" : "Awaiting allocation", final_allocation: isOverhead ? "Company overhead" : null,
-  }).select("*, employees(name)").single();
+  }).select("*, employees!expenses_reporter_id_fkey(name)").single();
   if (error) throw new Error(error.message);
   await updateSyncState(db, "expenses", expense.reference, () => syncExpenseToSheets(expense));
   if (chatId) await updateNotificationState(db, "expenses", expense.reference, chatId, expenseConfirmation(expense));
@@ -63,7 +63,7 @@ export async function submitExpense(input: any, notificationChatId?: number | nu
 
 export async function approveSale(input: any) {
   const { db, employee } = await employeeFor(input.actorName, "manager");
-  const { data: current, error } = await db.from("sales").select("*, employees(name)").eq("reference", input.reference).maybeSingle();
+  const { data: current, error } = await db.from("sales").select("*, employees!sales_salesperson_id_fkey(name)").eq("reference", input.reference).maybeSingle();
   if (error || !current) throw new Error("Sale not found");
   if (current.status === "Approved") return { sale: current, alreadyApproved: true };
   const split: CommissionSplit = { "Richard Darling": input.richardPct, "Anastasia Ferrari": input.anastasiaPct, "Jean-Claude Bērziņš": input.jeanClaudePct };
@@ -73,7 +73,7 @@ export async function approveSale(input: any) {
     approved_jean_claude_pct: input.jeanClaudePct, richard_commission_cents: commission.amounts["Richard Darling"],
     anastasia_commission_cents: commission.amounts["Anastasia Ferrari"], jean_claude_commission_cents: commission.amounts["Jean-Claude Bērziņš"],
     approved_at: new Date().toISOString(), approved_by: employee.id,
-  }).eq("reference", input.reference).eq("status", "Pending approval").select("*, employees(name)").single();
+  }).eq("reference", input.reference).eq("status", "Pending approval").select("*, employees!sales_salesperson_id_fkey(name)").single();
   if (updateError) throw new Error(updateError.message);
   await updateSyncState(db, "sales", sale.reference, () => syncSaleToSheets(sale));
   const changed = current.proposed_richard_pct !== sale.approved_richard_pct || current.proposed_anastasia_pct !== sale.approved_anastasia_pct || current.proposed_jean_claude_pct !== sale.approved_jean_claude_pct;
@@ -83,12 +83,12 @@ export async function approveSale(input: any) {
 
 export async function allocateExpense(input: any) {
   const { db, employee } = await employeeFor(input.actorName, "manager");
-  const { data: current, error } = await db.from("expenses").select("*, employees(name)").eq("reference", input.reference).maybeSingle();
+  const { data: current, error } = await db.from("expenses").select("*, employees!expenses_reporter_id_fkey(name)").eq("reference", input.reference).maybeSingle();
   if (error || !current) throw new Error("Expense not found");
   if (current.status === "Allocated") return { expense: current, alreadyAllocated: true };
   const { data: expense, error: updateError } = await db.from("expenses").update({
     status: "Allocated", final_allocation: input.allocation, allocated_at: new Date().toISOString(), allocated_by: employee.id,
-  }).eq("reference", input.reference).eq("status", "Awaiting allocation").select("*, employees(name)").single();
+  }).eq("reference", input.reference).eq("status", "Awaiting allocation").select("*, employees!expenses_reporter_id_fkey(name)").single();
   if (updateError) throw new Error(updateError.message);
   await updateSyncState(db, "expenses", expense.reference, () => syncExpenseToSheets(expense));
   const changed = current.proposed_allocation !== expense.final_allocation;
@@ -108,8 +108,8 @@ export async function dashboardData(actorName: string) {
   if (!actor) throw new Error("Selected employee does not exist");
   const isManager = actor.role === "manager";
   const [salesResult, expensesResult] = await Promise.all([
-    isManager ? db.from("sales").select("*, employees(name)").order("submitted_at", { ascending: false }) : db.from("sales").select("*, employees(name)").eq("salesperson_id", actor.id).order("submitted_at", { ascending: false }),
-    isManager ? db.from("expenses").select("*, employees(name)").order("submitted_at", { ascending: false }) : db.from("expenses").select("*, employees(name)").eq("reporter_id", actor.id).order("submitted_at", { ascending: false }),
+    isManager ? db.from("sales").select("*, employees!sales_salesperson_id_fkey(name)").order("submitted_at", { ascending: false }) : db.from("sales").select("*, employees!sales_salesperson_id_fkey(name)").eq("salesperson_id", actor.id).order("submitted_at", { ascending: false }),
+    isManager ? db.from("expenses").select("*, employees!expenses_reporter_id_fkey(name)").order("submitted_at", { ascending: false }) : db.from("expenses").select("*, employees!expenses_reporter_id_fkey(name)").eq("reporter_id", actor.id).order("submitted_at", { ascending: false }),
   ]);
   if (salesResult.error) throw new Error(salesResult.error.message);
   if (expensesResult.error) throw new Error(expensesResult.error.message);
