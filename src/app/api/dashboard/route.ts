@@ -4,6 +4,7 @@ import { dashboardData } from "@/lib/services";
 import { configured } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 function connectionDiagnostic() {
   const url = process.env.SUPABASE_URL ?? "";
