@@ -99,11 +99,13 @@ export async function allocateExpense(input: any) {
 export async function dashboardData(actorName: string) {
   const db = supabase();
   let { data: actor, error: actorError } = await db.from("employees").select("id, role").eq("name", actorName).maybeSingle();
+  if (actorError) throw new Error(`Employee query failed: ${actorError.message}`);
   if (!actor && !actorError) {
     await ensureDemoEmployees(db);
     ({ data: actor, error: actorError } = await db.from("employees").select("id, role").eq("name", actorName).maybeSingle());
   }
-  if (actorError || !actor) throw new Error("Selected employee does not exist");
+  if (actorError) throw new Error(`Employee query failed: ${actorError.message}`);
+  if (!actor) throw new Error("Selected employee does not exist");
   const isManager = actor.role === "manager";
   const [salesResult, expensesResult] = await Promise.all([
     isManager ? db.from("sales").select("*, employees(name)").order("submitted_at", { ascending: false }) : db.from("sales").select("*, employees(name)").eq("salesperson_id", actor.id).order("submitted_at", { ascending: false }),
