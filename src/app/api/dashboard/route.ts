@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "node:crypto";
 import { dashboardData } from "@/lib/services";
 import { configured } from "@/lib/supabase";
 
@@ -13,6 +14,14 @@ function connectionDiagnostic() {
   return { host, keyKind };
 }
 
+function keyMatchesSuppliedFingerprint(request: Request) {
+  const fingerprint = new URL(request.url).searchParams.get("keyFingerprint");
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  if (!fingerprint || !/^[a-f0-9]{64}$/.test(fingerprint) || !key) return null;
+  const actual = createHash("sha256").update(key).digest("hex");
+  return timingSafeEqual(Buffer.from(actual), Buffer.from(fingerprint));
+}
+
 export async function GET(request: Request) {
   if (!configured()) return NextResponse.json({ configured: false, dashboard: null, sales: [], expenses: [] });
   const actorName = new URL(request.url).searchParams.get("actorName");
@@ -22,7 +31,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       configured: true,
       error: error instanceof Error ? error.message : "Dashboard unavailable",
-      diagnostic: connectionDiagnostic(),
+      diagnostic: { ...connectionDiagnostic(), keyMatchesSuppliedFingerprint: keyMatchesSuppliedFingerprint(request) },
     }, { status: 500 });
   }
 }
