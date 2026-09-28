@@ -2,6 +2,19 @@ import { calculateCommissions, calculateDashboard, euroToCents, type CommissionS
 import { expenseApprovalMessage, expenseConfirmation, saleApprovalMessage, saleConfirmation, syncExpenseToSheets, syncSaleToSheets, updateNotificationState, updateSyncState } from "@/lib/integrations";
 import { supabase } from "@/lib/supabase";
 
+const DEMO_EMPLOYEES = [
+  { name: "Svetlana de Monte Carlo", role: "manager" },
+  { name: "Richard Darling", role: "salesperson" },
+  { name: "Anastasia Ferrari", role: "salesperson" },
+  { name: "Jean-Claude Bērziņš", role: "salesperson" },
+  { name: "Kevin von Whatever", role: "expense_reporter" },
+];
+
+async function ensureDemoEmployees(db: any) {
+  const { error } = await db.from("employees").upsert(DEMO_EMPLOYEES, { onConflict: "name" });
+  if (error) throw new Error(`Employee setup failed: ${error.message}`);
+}
+
 async function employeeFor(name: string, allowedRole: "manager" | "salesperson" | "expense_reporter") {
   const db = supabase();
   const { data, error } = await db.from("employees").select("*").eq("name", name).maybeSingle();
@@ -85,7 +98,11 @@ export async function allocateExpense(input: any) {
 
 export async function dashboardData(actorName: string) {
   const db = supabase();
-  const { data: actor, error: actorError } = await db.from("employees").select("id, role").eq("name", actorName).maybeSingle();
+  let { data: actor, error: actorError } = await db.from("employees").select("id, role").eq("name", actorName).maybeSingle();
+  if (!actor && !actorError) {
+    await ensureDemoEmployees(db);
+    ({ data: actor, error: actorError } = await db.from("employees").select("id, role").eq("name", actorName).maybeSingle());
+  }
   if (actorError || !actor) throw new Error("Selected employee does not exist");
   const isManager = actor.role === "manager";
   const [salesResult, expensesResult] = await Promise.all([
